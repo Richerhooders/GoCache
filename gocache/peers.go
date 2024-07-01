@@ -1,5 +1,7 @@
 package gocache
 
+import pb "gocache/gocachepb"
+
 /*
 完成流程2
 使用一致性哈希选择节点        是                                    是
@@ -18,5 +20,6 @@ type PeerPicker interface {
 // 接口 PeerGetter 的 Get() 方法用于从对应 group 查找缓存值。PeerGetter 就对应于上述流程中的 HTTP 客户端。
 // PeerGetter is the interface that must be implemented by a peer.
 type PeerGetter interface {
-	Get(group string ,key string) ([]byte,error)
+	// Get(group string ,key string) ([]byte,error)
+	Get(in *pb.Request,out *pb.Response) error
 }
