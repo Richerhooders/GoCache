@@ -15,10 +15,11 @@ type Getter interface {
 }
 
 // A GetterFunc implements Getter with a function
-// 定义函数类型 GetterFunc，并实现 Getter 接口的 Get 方法。
+// 定义函数类型 GetterFunc，并实现 Getter 接口的 Get 方法。任何具有相应签名的函数都可以被视为一个 GetterFunc。
 type GetterFunc func(key string) ([]byte, error)
 
 // Get implements Getter interface function
+// GetterFunc 还定义了 Get 方式，并在 Get 方法中调用自己
 // 函数类型实现某一个接口，称之为接口型函数，方便使用者在调用时既能够传入函数作为参数，也能够传入实现了该接口的结构体作为参数。
 func (f GetterFunc) Get(key string) ([]byte, error) {
 	return f(key)
@@ -63,9 +64,9 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 
 // GetGroup returns the named group previously created with NewGroup, or
 // nil if there's no such group.
-// 用来获取特定名称的group，使用了只读锁，不涉及写操作
+// 用来获取特定名称的group
 func GetGroup(name string) *Group {
-	mu.RLock()
+	mu.RLock()   //只读锁 RLock()，因为不涉及任何冲突变量的写操作。
 	g := groups[name]
 	mu.RUnlock()
 	return g
@@ -111,7 +112,7 @@ func (g *Group) load(key string) (value ByteView, err error) {
 	//each key is only fetched oncce(either locally or remotely)
 	//regardless of the number of concurrent callers
 	//修改 load 函数，将原来的 load 的逻辑，使用 g.loader.Do 包裹起来即可，这样确保了并发场景下针对相同的 key，load 过程只会调用一次。
-	viewi, err := g.loader.Do(key, func() (interface{}, error) {
+	viewi, err := g.loader.Do(key, func() (interface{}, error) { //任何类型都满足空接口，确保func()函数只执行一次
 		if g.peers != nil {
 			if peer, ok := g.peers.PickPeer(key); ok {
 				if value, err = g.getFromPeer(peer, key); err == nil {
@@ -147,7 +148,7 @@ func (g *Group) getFromPeer(peer PeerGetter, key string) (ByteView, error) {
 
 // getLocally 调用用户回调函数 g.getter.Get() 获取源数据，并且将源数据添加到缓存 mainCache 中（通过 populateCache 方法）
 func (g *Group) getLocally(key string) (ByteView, error) {
-	bytes, err := g.getter.Get(key)
+	bytes, err := g.getter.Get(key) //调用get方法时，就已经用peer的*httpGetter的内容（存的ip地址）去访问数据了。
 	if err != nil {
 		return ByteView{}, err
 	}

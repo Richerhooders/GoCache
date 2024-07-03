@@ -1,6 +1,7 @@
 package gocache
 
 //A ByteView holds on immutable view of bytes
+//封装一个只读的数据结构，防止修改
 type ByteView struct {
 	b []byte
 }

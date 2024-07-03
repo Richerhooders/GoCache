@@ -87,7 +87,11 @@ func main() {
 	}
 
 	gee := createGroup()
-	//指定了启动 API 服务器，则在一个新的 goroutine 中运行 startAPIServer 函数，确保 API 服务器与缓存服务器并行运行。
+	/*指定了启动 API 服务器，则在一个新的 goroutine 中运行 startAPIServer 函数，确保 API 服务器与缓存服务器并行运行。
+	为终端用户提供了一个访问缓存数据的接口，API服务接收到请求后，调用gocache.Group.Get()方法查询这个键。
+	gocache.Group实例利用其注册的:"HTTPPool"（缓存节点池）来找到负责该键的节点，并从哪里获取数据，数据被返回给API服务，
+	然后API服务将数据返回给请求的用户
+	*/
 	if api { 
 		go startAPIServer(apiAddr, gee)
 	}

@@ -64,3 +64,13 @@ func (m *Map) Get(key string) string {
 	})
 	return m.hashMap[m.keys[idx%len(m.keys)]]
 }
+
+// Remove use to remove a key and its virtual keys on the ring and map
+func (m *Map) Remove(key string) {
+	for i := 0; i < m.replicas; i++ {
+		hash := int(m.hash([]byte(strconv.Itoa(i) + key)))
+		idx := sort.SearchInts(m.keys, hash)
+		m.keys = append(m.keys[:idx], m.keys[idx+1:]...)
+		delete(m.hashMap, hash)
+	}
+}
