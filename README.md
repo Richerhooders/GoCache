@@ -26,3 +26,8 @@
 ├── README.md
 └── run.sh
 ```
+
+安装命令： 
+go get github.com/golang/protobuf/proto 
+go get google.golang.org/protobuf/reflect/protoreflect 
+go get google.golang.org/protobuf/runtime/protoimpl 

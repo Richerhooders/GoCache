@@ -1,9 +1,18 @@
 package gocache
 
+import (
+	"time"
+)
 //A ByteView holds on immutable view of bytes
 //封装一个只读的数据结构，防止修改
 type ByteView struct {
+	// if b is non-nil,b is used,else s is used
 	b []byte
+	e time.Time
+}
+
+func (v ByteView) Expire() time.Time {
+	return v.e
 }
 
 //Len return the view’s length

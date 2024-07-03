@@ -6,6 +6,7 @@ import (
 	"gocache/singleflight"
 	"log"
 	"sync"
+	"time"
 )
 
 // A Getter loads data for a key
@@ -153,10 +154,11 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 		return ByteView{}, err
 	}
 	value := ByteView{b: cloneBytes(bytes)}
-	g.populateCache(key, value)
+	expireTime := time.Now().Add(1 * time.Hour)
+	g.populateCache(key, value,expireTime)
 	return value, nil
 }
 
-func (g *Group) populateCache(key string, value ByteView) {
-	g.mainCache.add(key, value)
+func (g *Group) populateCache(key string, value ByteView,expire time.Time) {
+	g.mainCache.add(key, value, expire)
 }
