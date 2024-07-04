@@ -39,7 +39,7 @@ func TestRemoveoldest(t *testing.T) {
 
 func TestOnEvicted(t *testing.T) {
 	keys := make([]string, 0)
-	callback := func(key string, value Value) {
+	callback := func(key string, value Lengthable) {
 		keys = append(keys, key)
 	}
 	lru := New(int64(10), callback)
@@ -60,8 +60,8 @@ func TestAdd(t *testing.T) {
 	lru.Add("key", String("1"),time.Time{})
 	lru.Add("key", String("111"),time.Time{})
 
-	if lru.nbytes != int64(len("key")+len("111")) {
-		t.Fatal("expected 6 but got", lru.nbytes)
+	if lru.length != int64(len("key")+len("111")) {
+		t.Fatal("expected 6 but got", lru.length)
 	}
 }
 

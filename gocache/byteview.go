@@ -21,6 +21,7 @@ func(v ByteView) Len() int {
 }
 
 //ByteSlice return a copy of the data as a byte slice
+// ByteSlice 返回一份[]byte的副本（深拷贝）
 func(v ByteView) ByteSlice() []byte {
 	return cloneBytes(v.b)
 }

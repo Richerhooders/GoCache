@@ -1,5 +1,6 @@
 # GoCache
 ```
+第一版
 ├── gocache
 │   ├── byteview.go    // 缓存值的抽象与封装 封装一个只读的数据结构，防止修改
 │   ├── cache.go        // 使用 sync.Mutex 封装 LRU 的几个方法，使之支持并发的读写。
@@ -25,9 +26,49 @@
 ├── main.go
 ├── README.md
 └── run.sh
+
+第二版：实现使用rpc进行节点间获取缓存，使用etcd
+├── gocache
+│   ├── byteview.go     / 缓存值的抽象与封装 封装一个只读的数据结构，防止修改
+│   ├── byteview_test.go
+│   ├── cache.go
+│   ├── client.go
+│   ├── consistenthash
+│   │   ├── consistenthash.go
+│   │   └── consistenthash_test.go
+│   ├── gocache.go
+│   ├── gocachepb
+│   │   ├── gocachepb_grpc.pb.go
+│   │   ├── gocachepb.pb.go
+│   │   └── gocachepb.proto
+│   ├── gocache_test.go
+│   ├── go.mod
+│   ├── go.sum
+│   ├── lru
+│   │   ├── lru.go
+│   │   └── lru_test.go
+│   ├── peers.go
+│   ├── registry
+│   │   ├── discover.go
+│   │   ├── mocks_test.go
+│   │   ├── register.go
+│   │   └── register_test.go
+│   ├── server.go
+│   ├── server_test.go
+│   ├── singleflight
+│   │   ├── singleflight.go
+│   │   └── singleflight_test.go
+│   └── utils.go
+├── go.mod
+├── main.go
+├── README.md
+└── run.sh
 ```
 
 安装命令： 
 go get github.com/golang/protobuf/proto 
 go get google.golang.org/protobuf/reflect/protoreflect 
 go get google.golang.org/protobuf/runtime/protoimpl 
+
+go mod init xxx
+go mod tidy

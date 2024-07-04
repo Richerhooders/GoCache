@@ -5,8 +5,8 @@ import (
 )
 
 func TestDo(t *testing.T) {
-	var g Group
-	v, err := g.Do("key", func() (interface{}, error) {
+	var g Flight
+	v, err := g.Fly("key", func() (interface{}, error) {
 		return "bar", nil
 	})
 

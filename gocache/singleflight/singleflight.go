@@ -10,7 +10,7 @@ type call struct {
 }
 
 //Group 是 singleflight 的主数据结构，管理不同 key 的请求(call)。
-type Group struct {
+type Flight struct {
 	mu	sync.Mutex   	//protexts m 为了保护m不被并发读写而加上的锁
 	m	map[string]*call
 }
@@ -18,7 +18,7 @@ type Group struct {
 
 //Do 方法，接收 2 个参数，第一个参数是 key，第二个参数是一个函数 fn。Do 的作用就是，针对相同的 key，
 // 无论 Do 被调用多少次，函数 fn 都只会被调用一次，等待 fn 调用结束了，返回返回值或错误。
-func (g *Group) Do(key string, fn func() (interface{}, error)) (interface{}, error) { 
+func (g *Flight) Fly(key string, fn func() (interface{}, error)) (interface{}, error) { 
 	g.mu.Lock()		    // 修改m需要加锁
 	if g.m == nil {
 		g.m = make(map[string]*call)
