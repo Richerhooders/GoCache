@@ -1,4 +1,12 @@
 # GoCache
+
+groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓存节点进行通信。
+
+缓存服务可以注册到etcd，每个缓存客户端都可以通过etcd发现服务列表。
+
+改进LRU cache，使其具备TTL的能力，以及改进锁的粒度，提高并发度。
+
+将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）根据需要的不同缓存淘汰算法,使用对应的调用方式
 ```
 第一版
 ├── gocache
@@ -106,5 +114,3 @@ HashLruCache适应高QPS场景：
 针对大量的同步等待操作导致耗时增加的情况，解决方案就是尽量减小临界区。引入Hash机制，对全量数据做分片处理，在原有LruCache的基础上形成HashLruCache，以降低查询耗时。
 
 HashLruCache引入哈希算法，将缓存数据分散到N个LruCache上。查询时也按照相同的哈希算法，先获取数据可能存在的分片，然后再去对应的分片上查询数据。这样可以增加LruCache的读写操作的并行度，减小同步等待的耗时。
-
-go mod tidy
