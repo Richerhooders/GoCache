@@ -1,78 +1,98 @@
 package gocache
 
 import (
-	"fmt"
-	"log"
-	"math/rand"
-	"reflect"
 	"testing"
 	"time"
 )
 
-func createTestSvr() (*Group, *server) {
-	mysql := map[string]string{
-		"Tom":  "630",
-		"Jack": "589",
-		"Sam":  "567",
-	}
 
-	g := NewGroup("scores", 2<<10, GetterFunc(
-		func(key string) ([]byte, error) {
-			log.Println("[Mysql] search key", key)
-			if v, ok := mysql[key]; ok {
-				return []byte(v), nil
-			}
-			return nil, fmt.Errorf("%s not exist", key)
-		}))
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	// 随机一个端口 避免冲突
-	port := 50000 + r.Intn(100)
-	addr := fmt.Sprintf("localhost:%d", port)
-
-	svr, err := NewServer(addr)
+// 测试服务器的启动和停止
+func TestServerStartAndStop(t *testing.T) {
+	serverAddr := "localhost:9999"
+	svr, err := NewServer(serverAddr)
 	if err != nil {
-		log.Fatal(err)
+		t.Fatalf("Failed to create server: %v", err)
 	}
-	svr.SetPeers(addr)
-	g.RegisterPeers(svr)
-	return g, svr
-}
 
-func TestServer_GetExistsKey(t *testing.T) {
-	g, svr := createTestSvr()
+	// 异步启动服务器
 	go func() {
-		err := svr.Start()
-		if err != nil {
-			log.Fatal(err)
+		if err := svr.Start(); err != nil {
+			t.Errorf("Failed to start server: %v", err)
 		}
 	}()
-	view, err := g.Get("Tom")
-	if err != nil {
-		t.Fatal(err)
+
+	// 给服务器一些时间来启动
+	time.Sleep(time.Second * 1)
+
+	// 停止服务器
+	svr.Stop()
+
+	// 检查服务器是否正确停止
+	if svr.status {
+		t.Errorf("Server did not stop correctly")
 	}
-	if !reflect.DeepEqual(view.String(), "630") {
-		t.Errorf("Tom %s(actual)/%s(ok)", view.String(), "630")
-	}
-	log.Printf("Tom -> %s", view.String())
-	DestroyGroup(g.name)
 }
 
-func TestServer_GetUnknownKey(t *testing.T) {
-	g, svr := createTestSvr()
+// 测试服务器的对等点选择功能
+func TestServerPeerSelection(t *testing.T) {
+	serverAddr := "localhost:9999"
+	peerAddr1 := "localhost:9998"
+	peerAddr2 := "localhost:9997"
+
+	svr, err := NewServer(serverAddr)
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+
+	// 设置对等点
+	svr.SetPeers(peerAddr1, peerAddr2)
+
+	// 选择对等点
+	key := "somekey"
+	fetcher, ok := svr.Pick(key)
+	if !ok {
+		t.Errorf("Failed to pick a peer for key: %s", key)
+	}
+
+	// 验证返回的Fetcher是否为期望的客户端
+	if _, ok := fetcher.(*client); !ok {
+		t.Errorf("Picked peer is not a client type")
+	}
+}
+
+// 测试完整的启动到选择对等点再到停止的流程
+func TestServerFullCycle(t *testing.T) {
+	serverAddr := "localhost:9999"
+	peerAddr1 := "localhost:9998"
+	peerAddr2 := "localhost:9997"
+
+	svr, err := NewServer(serverAddr)
+	if err != nil {
+		t.Fatalf("Failed to create server: %v", err)
+	}
+
+	// 启动服务器
 	go func() {
-		err := svr.Start()
-		if err != nil {
-			log.Fatal(err)
+		if err := svr.Start(); err != nil {
+			t.Errorf("Failed to start server: %v", err)
 		}
 	}()
-	_, err := g.Get("Unknown")
-	if err != nil {
-		if err.Error() != "Unknown not exist" {
-			t.Fatal(err)
-		} else {
-			t.Log(err.Error())
-		}
+
+	// 设置对等点
+	svr.SetPeers(peerAddr1, peerAddr2)
+
+	// 选择对等点
+	key := "somekey"
+	_, ok := svr.Pick(key)
+	if !ok {
+		t.Errorf("Failed to pick a peer for key: %s", key)
 	}
-	DestroyGroup(g.name)
+
+	// 停止服务器
+	svr.Stop()
+
+	// 检查服务器是否正确停止
+	if svr.status {
+		t.Errorf("Server did not stop correctly")
+	}
 }

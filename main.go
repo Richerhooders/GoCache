@@ -8,6 +8,7 @@ import (
 	"gocache"
 	"log"
 	"sync"
+	"time"
 )
 
 func main() {
@@ -18,7 +19,7 @@ func main() {
 		"Sam":  "567",
 	}
 	// 新建cache实例
-	group := gocache.NewGroup("scores", 2<<10, gocache.GetterFunc(
+	group := gocache.NewGroup("scores", 2<<10,  time.Second, gocache.GetterFunc(
 		func(key string) ([]byte, error) {
 			log.Println("[Mysql] search key", key)
 			if v, ok := mysql[key]; ok {

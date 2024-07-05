@@ -37,10 +37,11 @@ type Group struct {
 	name      string
 	getter    Getter //缓存未命中时获取源数据的回调(callback)。
 	mainCache cache  //一开始实现的并发缓存。
-	server     Picker
+	server    Picker
 	// use singleflight.Group to make sure that
 	// each key is only fetched once
-	flight *singleflight.Flight
+	flight    *singleflight.Flight
+	Expire    time.Duration
 }
 
 var (
@@ -50,7 +51,7 @@ var (
 
 // NewGroup create a new instance of Group
 // 构建函数 NewGroup 用来实例化 Group，并且将 group 存储在全局变量 groups 中。
-func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
+func NewGroup(name string, cacheBytes int64, expire time.Duration, getter Getter,) *Group {
 	if getter == nil {
 		panic("nil Getter")
 	}
@@ -61,6 +62,7 @@ func NewGroup(name string, cacheBytes int64, getter Getter) *Group {
 		getter:    getter,
 		mainCache: cache{capacity: cacheBytes},
 		flight:    &singleflight.Flight{},
+		Expire:    expire,
 	}
 	groups[name] = g
 	return g
@@ -146,22 +148,6 @@ func (g *Group) load(key string) (value ByteView, err error) {
 	return
 }
 
-// // 使用实现了 PeerGetter 接口的 httpGetter 从访问远程节点，获取缓存值。
-// func (g *Group) getFromPeer(peer Fetcher, key string) (ByteView, error) {
-// 	// bytes, err := peer.Get(g.name, key)
-// 	req := &pb.Request{
-// 		Group: g.name,
-// 		Key:   key,
-// 	}
-// 	res := &pb.Response{}
-// 	err := peer.Get(req, res)
-// 	if err != nil {
-// 		return ByteView{}, err
-// 	}
-// 	// return ByteView{b: bytes}, nil
-// 	return ByteView{b: res.Value}, nil
-// }
-
 // getLocally 调用用户回调函数 g.getter.Get() 获取源数据，并且将源数据添加到缓存 mainCache 中（通过 populateCache 方法）
 func (g *Group) getLocally(key string) (ByteView, error) {
 	bytes, err := g.getter.retrieve(key) //调用get方法时，就已经用peer的*httpGetter的内容（存的ip地址）去访问数据了。
@@ -169,11 +155,10 @@ func (g *Group) getLocally(key string) (ByteView, error) {
 		return ByteView{}, err
 	}
 	value := ByteView{b: cloneBytes(bytes)}
-	expireTime := time.Now().Add(1 * time.Hour)
-	g.populateCache(key, value,expireTime)
+	g.populateCache(key, value)
 	return value, nil
 }
 
-func (g *Group) populateCache(key string, value ByteView,expire time.Time) {
-	g.mainCache.add(key, value, expire)
+func (g *Group) populateCache(key string, value ByteView) {
+	g.mainCache.add(key, value, g.Expire)
 }

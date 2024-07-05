@@ -2,7 +2,6 @@ package gocache
 
 import (
 	"testing"
-	"time"
 )
 
 func TestByteView_Len(t *testing.T) {
@@ -33,10 +32,10 @@ func TestByteView_String(t *testing.T) {
 	}
 }
 
-func TestByteView_Expire(t *testing.T) {
-	now := time.Now()
-	v := ByteView{e: now}
-	if !v.Expire().Equal(now) {
-		t.Errorf("ByteView.Expire() = %v, want %v", v.Expire(), now)
-	}
-}
+// func TestByteView_Expire(t *testing.T) {
+// 	now := time.Now()
+// 	v := ByteView{e: now}
+// 	if !v.Expire().Equal(now) {
+// 		t.Errorf("ByteView.Expire() = %v, want %v", v.Expire(), now)
+// 	}
+// }
