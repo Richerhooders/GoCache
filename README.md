@@ -73,25 +73,27 @@ lru、lfu、arc、hashlru、hashlfu
 性能对比
 hashlru 与 lru 性能对比
 
-算法	耗时
-lru	220.2s
-hashlru-2分区	267.75s
-hashlru-4分区	137.36s
-hashlru-8分区	22.4s
-hashlru-16分区	23.57s
-hashlru-32分区	16.84s
-hashlru-64分区	15.29s
+| 算法            | 耗时     |
+|-----------------|----------|
+| lru             | 220.2s   |
+| hashlru-2分区   | 267.75s  |
+| hashlru-4分区   | 137.36s  |
+| hashlru-8分区   | 22.4s    |
+| hashlru-16分区  | 23.57s   |
+| hashlru-32分区  | 16.84s   |
+| hashlru-64分区  | 15.29s   |
 
 hashlfu 与 lfu 性能对比
 
-算法	耗时
-lru	220.92s
-hashlfu-2分区	231.28s
-hashlfu-4分区	72.74s
-hashlfu-8分区	20.33s
-hashlfu-16分区	17.76s
-hashlfu-32分区	16.93s
-hashlfu-64分区	16.03s
+| 算法           | 耗时      |
+|----------------|-----------|
+| lru            | 220.92s   |
+| hashlfu-2分区  | 231.28s   |
+| hashlfu-4分区  | 72.74s    |
+| hashlfu-8分区  | 20.33s    |
+| hashlfu-16分区 | 17.76s    |
+| hashlfu-32分区 | 16.93s    |
+| hashlfu-64分区 | 16.03s    |
 
 hash算法减少耗时原因:
 LruCache在高QPS下的耗时增加原因分析：
