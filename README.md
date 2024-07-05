@@ -6,7 +6,9 @@ groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓
 
 改进LRU cache，使其具备TTL的能力，以及改进锁的粒度，提高并发度。
 
-将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）根据需要的不同缓存淘汰算法,使用对应的调用方式
+将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）
+
+根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
 ```
 第一版
 ├── gocache

@@ -1,9 +1,17 @@
 package gocache
 
 import (
+	// "gocache/highperformance"
 	"gocache/lru"
 	"sync"
 	"time"
+)
+// CacheType constants to define the type of cache
+const (
+    TYPE_SIMPLE = "lru_simple"
+    TYPE_LRU    = "lru"
+    TYPE_LFU    = "lfu"
+    TYPE_ARC    = "arc"
 )
 
 const defaultExpiration = 1 * time.Minute
