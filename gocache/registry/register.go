@@ -41,35 +41,35 @@ func Register(service string, addr string, stop chan error) error {
 		return fmt.Errorf("create etcd client failed: %v", err)
 	}
 	defer cli.Close()
-	// 创建一个租约 配置5秒过期
+	// 创建一个租约 配置5秒过期，
 	resp, err := cli.Grant(context.Background(), 5)
 	if err != nil {
 		return fmt.Errorf("create lease failed: %v", err)
 	}
-	leaseId := resp.ID
-	// 注册服务
+	leaseId := resp.ID //返回的响应包含租约ID
+	// 注册服务,将服务注册到etcd中，绑定到刚才创建的租约上。
 	err = etcdAdd(cli, leaseId, service, addr)
 	if err != nil {
 		return fmt.Errorf("add etcd record failed: %v", err)
 	}
-	// 设置服务心跳检测
+	// 设置服务心跳检测，保证租约的活跃状态，KeepAlive 方法返回一个通道，用于接收心跳检测的响应。
 	ch, err := cli.KeepAlive(context.Background(), leaseId)
 	if err != nil {
 		return fmt.Errorf("set keepalive failed: %v", err)
 	}
 
 	log.Printf("[%s] register service ok\n", addr)
-	for {
+	for { // 进入一个无限循环
 		select {
-		case err := <-stop:
+		case err := <-stop: //stop通道：接收到错误信号时，记录日志并返回错误
 			if err != nil {
 				log.Println(err)
 			}
 			return err
-		case <-cli.Ctx().Done():
+		case <-cli.Ctx().Done()://cli.Ctx().Done()：监听etcd客户端的上下文，如果客户端关闭，记录日志并返回
 			log.Println("service closed")
 			return nil
-		case _, ok := <-ch:
+		case _, ok := <-ch://监听心跳检测的响应，如果通道关闭，记录日志，
 			// 监听租约
 			if !ok {
 				log.Println("keep alive channel closed")

@@ -28,17 +28,17 @@ func main() {
 			return nil, fmt.Errorf("%s not exist", key)
 		}))
 	// New一个服务实例
-	var addr string = "localhost:9999"
-	svr, err := gocache.NewServer(addr)
+	addrs := []string{"localhost:9999", "localhost:9998", "localhost:9997"}
+	svr, err := gocache.NewServer(addrs[0])
 	if err != nil {
 		log.Fatal(err)
 	}
 	// 设置同伴节点IP(包括自己)
   // todo: 这里的peer地址从etcd获取(服务发现)
-	svr.SetPeers(addr)
+	svr.SetPeers(addrs...)
 	// 将服务与cache绑定 因为cache和server是解耦合的
 	group.RegisterPeers(svr)
-	log.Println("peanutcache is running at", addr)
+	log.Println("gocache is running at", addrs)
 	// 启动服务(注册服务至etcd/计算一致性哈希...)
 	go func() {
 		// Start将不会return 除非服务stop或者抛出error

@@ -20,15 +20,16 @@ import (
 	"google.golang.org/grpc"
 )
 
-// server 模块为peanutcache之间提供通信能力
+// server 模块为gocache之间提供通信能力
 // 这样部署在其他机器上的cache可以通过访问server获取缓存
-// 至于找哪台主机 那是一致性哈希的工作了
-
+//  至于找哪台主机 那是一致性哈希的工作了
+// 服务器的默认地址
 const (
 	defaultAddr     = "127.0.0.1:6324"
 	defaultReplicas = 50
 )
 
+//配置了 etcd 客户端的默认设置，包括 etcd 服务的端点地址和拨号超时时间。这是用于服务发现和注册的配置，确保服务器可以与 etcd 集群正确通信。
 var (
 	defaultEtcdConfig = clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -38,14 +39,14 @@ var (
 
 // server 和 Group 是解耦合的 所以server要自己实现并发控制
 type server struct {
-	pb.UnimplementedGroupCacheServer
+	pb.UnimplementedGroupCacheServer   //protobuf生成的接口，确保server结构体实现了必须的grpc方法
 
 	addr       string     // format: ip:port
 	status     bool       // true: running false: stop
 	stopSignal chan error // 通知registry revoke服务
 	mu         sync.Mutex
 	consHash    *consistenthash.Consistency 
-	clients    map[string]*client
+	clients    map[string]*client   //每个客户端地址对应一个客户端实例
 }
 
 // NewServer 创建cache的svr 若addr为空 则使用defaultAddr
@@ -64,7 +65,7 @@ func (s *server) Get(ctx context.Context, in *pb.Request) (*pb.Response, error) 
 	group, key := in.GetGroup(), in.GetKey()
 	resp := &pb.Response{}
 
-	log.Printf("[peanutcache_svr %s] Recv RPC Request - (%s)/(%s)", s.addr, group, key)
+	log.Printf("[gocache_svr %s] Recv RPC Request - (%s)/(%s)", s.addr, group, key)
 	if key == "" {
 		return resp, fmt.Errorf("key required")
 	}
@@ -97,20 +98,20 @@ func (s *server) Start() error {
 	//    以及etcd的Host即可获取对应服务IP 无需写死至client代码中
 	// ----------------------------------------------
 	s.status = true
-	s.stopSignal = make(chan error)
+	s.stopSignal = make(chan error) // 创建一个接收停止信号的通道，这个通道用于从注册服务接收停止或错误信号
 
 	port := strings.Split(s.addr, ":")[1]
-	lis, err := net.Listen("tcp", ":"+port)
+	lis, err := net.Listen("tcp", ":"+port) // 启动TCP服务器，监听指定端口
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
-	grpcServer := grpc.NewServer()
-	pb.RegisterGroupCacheServer(grpcServer, s)
+	grpcServer := grpc.NewServer() // 创建新的服务器实例
+	pb.RegisterGroupCacheServer(grpcServer, s)  // 这个服务器实例与 gRPC 服务相关联，允许 gRPC 处理到来的请求。
 
-	// 注册服务至etcd
-	go func() {
+	// 注册服务至etcd，异步运行服务注册逻辑，避免阻塞主线程
+	go func() { 
 		// Register never return unless stop singnal received
-		err := registry.Register("peanutcache", s.addr, s.stopSignal)
+		err := registry.Register("gocache", s.addr, s.stopSignal) //注册服务器的地址到etcd，这样客户端可以通过 etcd 发现并连接到这个服务器。
 		if err != nil {
 			log.Fatalf(err.Error())
 		}
@@ -126,7 +127,8 @@ func (s *server) Start() error {
 
 	//log.Printf("[%s] register service ok\n", s.addr)
 	s.mu.Unlock()
-
+	
+	// 在之前创建的监听器上服务gRPC请求，这是一个阻塞调用，会持续监听直到服务器关闭
 	if err := grpcServer.Serve(lis); s.status && err != nil {
 		return fmt.Errorf("failed to serve: %v", err)
 	}
@@ -141,15 +143,20 @@ func (s *server) SetPeers(peersAddr ...string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	//初始化一个一致性哈希环
 	s.consHash = consistenthash.New(defaultReplicas, nil)
-	s.consHash.Register(peersAddr...)
+	//供的远程节点地址注册到一致性哈希环中
+	s.consHash.Register(peersAddr...) 
 	s.clients = make(map[string]*client)
 	for _, peerAddr := range peersAddr {
 		if !validPeerAddr(peerAddr) {
 			panic(fmt.Sprintf("[peer %s] invalid address format, it should be x.x.x.x:port", peerAddr))
 		}
-		service := fmt.Sprintf("peanutcache/%s", peerAddr)
-		s.clients[peerAddr] = NewClient(service)
+		//对于每一个有效的节点地址，创建并注册新的客户端实例
+		service := fmt.Sprintf("gocache/%s", peerAddr)
+		s.clients[peerAddr] = NewClient(service) 
+		stopCh := make(chan error, 1)
+		go registry.Register(service,peerAddr,stopCh)
 	}
 }
 
@@ -166,7 +173,8 @@ func (s *server) Pick(key string) (Fetcher, bool) {
 		return nil, false
 	}
 	log.Printf("[cache %s] pick remote peer: %s\n", s.addr, peerAddr)
-	return s.clients[peerAddr], true
+	// return s.clients[peerAddr], true
+	
 }
 
 // Stop 停止server运行 如果server没有运行 这将是一个no-op

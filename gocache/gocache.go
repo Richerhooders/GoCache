@@ -136,7 +136,7 @@ func (g *Group) load(key string) (value ByteView, err error) {
 				if bytes, err := fetcher.Fetch(g.name,key); err == nil {
 					return ByteView{b: cloneBytes(bytes)}, nil
 				}
-				log.Println("[GeeCache] Failed to get from peer", err)
+				log.Println("[GoCache] Failed to get from peer", err)
 			}
 		}
 		return g.getLocally(key)
