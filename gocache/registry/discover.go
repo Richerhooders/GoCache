@@ -21,15 +21,27 @@ func EtcdDial(c *clientv3.Client, service string) (*grpc.ClientConn, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	//建立gRPC连接
 	//第一个参数 "etcd:///"+service：指定要连接的服务名称，这里使用 etcd 解析器来解析服务地址。"etcd:///" 是 etcd 解析器的 URI 前缀，后面接服务名称。
 	//grpc.WithResolvers(etcdResolver)：设置 gRPC 解析器为刚才创建的 etcd 解析器。
 	//grpc.WithInsecure()：不使用 SSL/TLS 进行加密。这通常在开发和测试环境中使用
 	//grpc.WithBlock()：阻塞直到连接成功。这意味着 grpc.Dial 调用将阻塞，直到成功建立连接或发生错误。
-	return grpc.Dial(
-		"etcd:///"+service,  
+	// return grpc.Dial(
+	// 	"etcd:///"+service,  
+	// 	grpc.WithResolvers(etcdResolver),
+	// 	grpc.WithInsecure(),
+	// 	grpc.WithBlock(),
+	// )
+
+	conn, err := grpc.Dial("etcd:///"+service,  
 		grpc.WithResolvers(etcdResolver),
 		grpc.WithInsecure(),
-		grpc.WithBlock(),
+		grpc.FailOnNonTempDialError(true), // Fail fast on permanent errors
 	)
+	if err != nil {
+		log.Printf("Failed to connect to service: %v", err)
+		return nil, err
+	}
+	return conn,err
 }

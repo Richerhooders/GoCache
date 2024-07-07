@@ -12,49 +12,60 @@ import (
 )
 
 func main() {
-	// 模拟MySQL数据库 用于peanutcache从数据源获取值
+	// 模拟MySQL数据库，用于从数据源获取值
 	var mysql = map[string]string{
 		"Tom":  "630",
 		"Jack": "589",
 		"Sam":  "567",
 	}
-	// 新建cache实例
-	group := gocache.NewGroup("scores", 2<<10,  time.Second, gocache.GetterFunc(
-		func(key string) ([]byte, error) {
-			log.Println("[Mysql] search key", key)
-			if v, ok := mysql[key]; ok {
-				return []byte(v), nil
-			}
-			return nil, fmt.Errorf("%s not exist", key)
-		}))
-	// New一个服务实例
+
+	// 服务实例的地址
 	addrs := []string{"localhost:9999", "localhost:9998", "localhost:9997"}
-	svr, err := gocache.NewServer(addrs[0])
-	if err != nil {
-		log.Fatal(err)
-	}
-	// 设置同伴节点IP(包括自己)
-  // todo: 这里的peer地址从etcd获取(服务发现)
-	svr.SetPeers(addrs...)
-	// 将服务与cache绑定 因为cache和server是解耦合的
-	group.RegisterPeers(svr)
-	log.Println("gocache is running at", addrs)
-	// 启动服务(注册服务至etcd/计算一致性哈希...)
-	go func() {
-		// Start将不会return 除非服务stop或者抛出error
-		err = svr.Start()
+	var Group []*gocache.Group
+	// 创建并启动每个服务实例
+	for _, addr := range addrs {
+		svr, err := gocache.NewServer(addr)
 		if err != nil {
-			log.Fatal(err)
+			log.Fatalf("Failed to create server on %s: %v", addr, err)
 		}
-	}()
+		svr.SetPeers(addrs...)
+		// 创建每个server的专属Group
+		group := gocache.NewGroup("scores", 2<<10, time.Second, gocache.GetterFunc(
+			func(key string) ([]byte, error) {
+				log.Println("[Mysql] search key", key)
+				if v, ok := mysql[key]; ok {
+					return []byte(v), nil
+				}
+				return nil, fmt.Errorf("%s not exist", key)
+			})) // 这里假设NewGroup的构造函数可以接受server作为参数
+		
+		// 将服务与group绑定
+		group.RegisterPeers(svr)
+		Group = append(Group, group)
+		// 启动服务
+		go func() {
+			// Start将不会return 除非服务stop或者抛出error
+			err = svr.Start()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+
+	log.Println("gocache is running at", addrs)
+
+	time.Sleep(3 * time.Second) // 等待服务器启动
 
 	// 发出几个Get请求
 	var wg sync.WaitGroup
-	wg.Add(4)
-	go GetTomScore(group, &wg)
-	go GetJackScore(group, &wg)
-	go GetTomScore(group, &wg)
-	go GetTomScore(group, &wg)
+	wg.Add(2)
+	go GetTomScore(Group[0], &wg)
+	go GetJackScore(Group[0], &wg)
+	wg.Wait()
+
+	wg.Add(2)
+	go GetTomScore(Group[0], &wg)
+	go GetJackScore(Group[0], &wg)
 	wg.Wait()
 }
 

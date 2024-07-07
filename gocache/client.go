@@ -6,6 +6,7 @@ import (
 	pb "gocache/gocachepb"
 	"gocache/registry"
 	"time"
+	"log"
 
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -27,11 +28,12 @@ func (c *client) Fetch(group string, key string) ([]byte, error) {
 	defer cli.Close()
 	// 发现服务 取得与服务的连接 通过etcd获取gRPC服务的地址，并建立连接。
 	conn,err := registry.EtcdDial(cli,c.name);
-
+	
 	if err != nil {
 		return nil, err
 	}
 	defer conn.Close()
+	log.Println("Successfully obtained the address of gRPC service through etcd")
 	//如果连接成功，会使用这个连接创建一个新的gRPC客户端
 	grpcClient := pb.NewGroupCacheClient(conn)
 	//设置一个十秒超时时间，

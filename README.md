@@ -9,77 +9,107 @@ groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓
 将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）
 
 根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
-```
-第一版
-├── gocache
-│   ├── byteview.go    // 缓存值的抽象与封装 封装一个只读的数据结构，防止修改
-│   ├── cache.go        // 使用 sync.Mutex 封装 LRU 的几个方法，使之支持并发的读写。
-│   ├── consistenthash
-│   │   ├── consistenthash.go  //一致性哈希的实现，防止缓存雪崩
-│   │   └── consistenthash_test.go
-│   ├── gocache.go       // 负责与外部交互，控制缓存存储和获取的主流程 
-│   ├── gocachepb
-│   │   ├── gocachepb.pb.go
-│   │   └── gocachepb.proto // protobuf序列化反序列化实现
-│   ├── gocache_test.go
-│   ├── go.mod  
-│   ├── http.go         //通信模块
-│   ├── lru
-│   │   ├── lru.go    // lru 缓存淘汰策略 
-│   │   └── lru_test.go
-│   ├── peers.go        //分布式节点远程访问接口
-│   └── singleflight
-│       ├── singleflight.go    //singleflight算法防止缓存击穿
-│       └── singleflight_test.go
-├── go.mod
-├── go.sum
-├── main.go
-├── README.md
-└── run.sh
 
-第二版：实现使用rpc进行节点间获取缓存，使用etcd
-├── gocache
-│   ├── byteview.go     / 缓存值的抽象与封装 封装一个只读的数据结构，防止修改
-│   ├── byteview_test.go
-│   ├── cache.go
-│   ├── client.go
-│   ├── consistenthash
-│   │   ├── consistenthash.go
-│   │   └── consistenthash_test.go
-│   ├── gocache.go
-│   ├── gocachepb
-│   │   ├── gocachepb_grpc.pb.go
-│   │   ├── gocachepb.pb.go
-│   │   └── gocachepb.proto
-│   ├── gocache_test.go
-│   ├── go.mod
-│   ├── go.sum
-│   ├── lru
-│   │   ├── lru.go
-│   │   └── lru_test.go
-│   ├── peers.go
-│   ├── registry
-│   │   ├── discover.go
-│   │   ├── mocks_test.go
-│   │   ├── register.go
-│   │   └── register_test.go
-│   ├── server.go
-│   ├── server_test.go
-│   ├── singleflight
-│   │   ├── singleflight.go
-│   │   └── singleflight_test.go
-│   └── utils.go
-├── go.mod
-├── main.go
-├── README.md
-└── run.sh
-```
-第三版：
-增加了缓存过期时间,增加lfu算法,增加了arc算法，lru-K算法、
-根据过期时间懒汉式删除过期数据,也可主动刷新过期缓存
-现已支持内存算法:
-lru、lfu、arc、hashlru、hashlfu
+## Prerequisites
+Golang 1.16 or later
+Etcd v3.4.0 or later
+gRPC-go v1.38.0 or later
+protobuf v1.26.0 or later
 
+## Usage
+```
+// example.go file
+// 运行前，你需要在本地启动Etcd实例，作为服务中心。
+
+package main
+
+import (
+	"fmt"
+	"gocache"
+	"log"
+	"sync"
+	"time"
+)
+
+func main() {
+	// 模拟MySQL数据库，用于从数据源获取值
+	var mysql = map[string]string{
+		"Tom":  "630",
+		"Jack": "589",
+		"Sam":  "567",
+	}
+
+	// 服务实例的地址
+	addrs := []string{"localhost:9999", "localhost:9998", "localhost:9997"}
+	var Group []*gocache.Group
+	// 创建并启动每个服务实例
+	for _, addr := range addrs {
+		svr, err := gocache.NewServer(addr)
+		if err != nil {
+			log.Fatalf("Failed to create server on %s: %v", addr, err)
+		}
+		svr.SetPeers(addrs...)
+		// 创建每个server的专属Group
+		group := gocache.NewGroup("scores", 2<<10, time.Second, gocache.GetterFunc(
+			func(key string) ([]byte, error) {
+				log.Println("[Mysql] search key", key)
+				if v, ok := mysql[key]; ok {
+					return []byte(v), nil
+				}
+				return nil, fmt.Errorf("%s not exist", key)
+			})) // 这里假设NewGroup的构造函数可以接受server作为参数
+		
+		// 将服务与group绑定
+		group.RegisterPeers(svr)
+		Group = append(Group, group)
+		// 启动服务
+		go func() {
+			// Start将不会return 除非服务stop或者抛出error
+			err = svr.Start()
+			if err != nil {
+				log.Fatal(err)
+			}
+		}()
+	}
+
+	log.Println("gocache is running at", addrs)
+
+	time.Sleep(3 * time.Second) // 等待服务器启动
+
+	// 发出几个Get请求
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go GetTomScore(Group[0], &wg)
+	go GetJackScore(Group[0], &wg)
+	wg.Wait()
+
+	wg.Add(2)
+	go GetTomScore(Group[0], &wg)
+	go GetJackScore(Group[0], &wg)
+	wg.Wait()
+}
+
+func GetTomScore(group *gocache.Group, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Printf("get Tom...")
+	view, err := group.Get("Tom")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(view.String())
+}
+func GetJackScore(group *gocache.Group, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Printf("get Jack...")
+	view, err := group.Get("Jack")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(view.String())
+}
+```
 ## 性能对比
 hashlru 与 lru 性能对比
 
