@@ -19,7 +19,7 @@ func main() {
 		"Sam":  "567",
 	}
 
-	// 服务实例的地址
+	// 多个节点的地址
 	addrs := []string{"localhost:9999", "localhost:9998", "localhost:9997"}
 	var Group []*gocache.Group
 	// 创建并启动每个服务实例
@@ -37,8 +37,8 @@ func main() {
 					return []byte(v), nil
 				}
 				return nil, fmt.Errorf("%s not exist", key)
-			})) // 这里假设NewGroup的构造函数可以接受server作为参数
-		
+			}))
+
 		// 将服务与group绑定
 		group.RegisterPeers(svr)
 		Group = append(Group, group)
@@ -56,7 +56,7 @@ func main() {
 
 	time.Sleep(3 * time.Second) // 等待服务器启动
 
-	// 发出几个Get请求
+	// 发出几个Get请求，分开发送，保证第二次Get缓存命中
 	var wg sync.WaitGroup
 	wg.Add(2)
 	go GetTomScore(Group[0], &wg)
