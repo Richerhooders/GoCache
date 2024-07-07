@@ -1,26 +1,24 @@
 # GoCache
-The gRPC implementation of groupcache: A high performance, open source, using RPC framework that communicated with each cache node. Cache service can register to etcd, and each cache client can dicovery the service list by etcd.For more information see the groupcache, or goache.
+![](https://img.shields.io/badge/license-MIT-blue)![](https://img.shields.io/github/stars/peanutzhen/peanutcache?style=plastic)
+
+The [**gRPC**](https://github.com/grpc/grpc-go) implementation of [**groupcache**](https://github.com/golang/groupcache): A high performance, open source, using RPC framework that  communicated with each cache node. Cache service can register to [**etcd**](https://github.com/etcd-io/etcd), and each cache client can dicovery the service list by etcd.For more information see the [groupcache](https://github.com/golang/groupcache), or [**geecache**](https://geektutu.com/post/geecache.html).
 ## Introduce
+### groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓存节点进行通信。
 
-groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓存节点进行通信。
+- 缓存服务可以注册到etcd，每个缓存客户端都可以通过etcd发现服务列表。
 
-缓存服务可以注册到etcd，每个缓存客户端都可以通过etcd发现服务列表。
+- 改进LRU cache，使其具备TTL的能力，以及改进锁的粒度，提高并发度。
 
-改进LRU cache，使其具备TTL的能力，以及改进锁的粒度，提高并发度。
+- 将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）
 
-将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）
-
-根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
+- 根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
 
 ## Prerequisites
-- Golang 1.16 or later
 
-- Etcd v3.4.0 or later
-
-- gRPC-go v1.38.0 or later
-
-- protobuf v1.26.0 or later
-
+- **Golang** 1.16 or later
+- **Etcd** v3.4.0 or later
+- **gRPC-go** v1.38.0 or later
+- **protobuf** v1.26.0 or later
 
 ## Usage
 ```go
@@ -118,8 +116,9 @@ func GetJackScore(group *gocache.Group, wg *sync.WaitGroup) {
 ```
 
 ## The Result 
-you will 
-```
+Before `go run`, you should run `etcd` local directly(without any spcified parameter) and then execute `go run main.go` and `./main` you will get follows:
+
+```console
 2024/07/06 19:41:47 gocache is running at [localhost:9999 localhost:9998 localhost:9997]
 2024/07/06 19:41:47 [localhost:9998] register service ok
 2024/07/06 19:41:47 [localhost:9999] register service ok
