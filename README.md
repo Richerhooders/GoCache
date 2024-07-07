@@ -1,5 +1,6 @@
 # GoCache
 The gRPC implementation of groupcache: A high performance, open source, using RPC framework that communicated with each cache node. Cache service can register to etcd, and each cache client can dicovery the service list by etcd.For more information see the groupcache, or goache.
+## Introduce
 
 groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓存节点进行通信。
 
@@ -114,6 +115,33 @@ func GetJackScore(group *gocache.Group, wg *sync.WaitGroup) {
 	}
 	fmt.Println(view.String())
 }
+```
+
+## The Result 
+you will 
+```
+2024/07/06 19:41:47 gocache is running at [localhost:9999 localhost:9998 localhost:9997]
+2024/07/06 19:41:47 [localhost:9998] register service ok
+2024/07/06 19:41:47 [localhost:9999] register service ok
+2024/07/06 19:41:47 [localhost:9997] register service ok
+2024/07/06 19:41:50 get Tom...
+2024/07/06 19:41:50 get Jack...
+2024/07/06 19:41:50 ooh! pick myself, I am localhost:9999
+2024/07/06 19:41:50 [Mysql] search key Tom
+630
+2024/07/06 19:41:50 [cache localhost:9999] pick remote peer: localhost:9997
+2024/07/06 19:41:50 Trying to dial etcd with service name: gocache/localhost:9997
+2024/07/06 19:41:50 Successfully obtained the address of gRPC service through etcd
+2024/07/06 19:42:00 [GoCache] Failed to get from peer <nil>
+2024/07/06 19:42:00 [Mysql] search key Jack
+589
+2024/07/06 19:42:00 get Jack...
+2024/07/06 19:42:00 [GoCache] hit
+589
+2024/07/06 19:42:00 get Tom...
+2024/07/06 19:42:00 ooh! pick myself, I am localhost:9999
+2024/07/06 19:42:00 [Mysql] search key Tom
+630
 ```
 ## 性能对比
 hashlru 与 lru 性能对比
