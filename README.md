@@ -1,4 +1,5 @@
 # GoCache
+The gRPC implementation of groupcache: A high performance, open source, using RPC framework that communicated with each cache node. Cache service can register to etcd, and each cache client can dicovery the service list by etcd.For more information see the groupcache, or goache.
 
 groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓存节点进行通信。
 
@@ -11,10 +12,14 @@ groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓
 根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
 
 ## Prerequisites
-Golang 1.16 or later
-Etcd v3.4.0 or later
-gRPC-go v1.38.0 or later
-protobuf v1.26.0 or later
+- Golang 1.16 or later
+
+- Etcd v3.4.0 or later
+
+- gRPC-go v1.38.0 or later
+
+- protobuf v1.26.0 or later
+
 
 ## Usage
 ```
