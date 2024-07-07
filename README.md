@@ -22,7 +22,7 @@ groupcache的gRPC实现：一个高性能、开源、使用RPC框架与每个缓
 
 
 ## Usage
-```
+```go
 // example.go file
 // 运行前，你需要在本地启动Etcd实例，作为服务中心。
 
