@@ -6,7 +6,6 @@ import (
 	pb "gocache/gocachepb"
 	"gocache/registry"
 	"time"
-	"google.golang.org/grpc"
 
 
 	clientv3 "go.etcd.io/etcd/client/v3"
@@ -15,10 +14,6 @@ import (
 // client 模块实现gocache访问其他远程节点 从而获取缓存的能力
 type client struct {
 	name string  // 服务名称 pcache/ip:addr
-	
-	etcdClient *clientv3.Client
-	grpcConn   *grpc.ClientConn
-	cacheClient pb.GroupCacheClient
 }
 
 // 使用实现了 PeerGetter 接口的 httpGetter 从访问远程节点，获取缓存值。 getFromPeer 从remote peer获取对应缓存值
@@ -28,9 +23,11 @@ func (c *client) Fetch(group string, key string) ([]byte, error) {
 	if err != nil {
 		return nil,err
 	}
+
 	defer cli.Close()
 	// 发现服务 取得与服务的连接 通过etcd获取gRPC服务的地址，并建立连接。
 	conn,err := registry.EtcdDial(cli,c.name);
+
 	if err != nil {
 		return nil, err
 	}

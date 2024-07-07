@@ -52,7 +52,7 @@ func main() {
 	var wg sync.WaitGroup
 	wg.Add(4)
 	go GetTomScore(group, &wg)
-	go GetTomScore(group, &wg)
+	go GetJackScore(group, &wg)
 	go GetTomScore(group, &wg)
 	go GetTomScore(group, &wg)
 	wg.Wait()
@@ -62,6 +62,16 @@ func GetTomScore(group *gocache.Group, wg *sync.WaitGroup) {
 	defer wg.Done()
 	log.Printf("get Tom...")
 	view, err := group.Get("Tom")
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(view.String())
+}
+func GetJackScore(group *gocache.Group, wg *sync.WaitGroup) {
+	defer wg.Done()
+	log.Printf("get Jack...")
+	view, err := group.Get("Jack")
 	if err != nil {
 		fmt.Println(err.Error())
 		return

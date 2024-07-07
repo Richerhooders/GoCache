@@ -8,6 +8,7 @@ import (
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"go.etcd.io/etcd/client/v3/naming/resolver"
 	"google.golang.org/grpc"
+	"log"
 )
 
 // EtcdDial 向grpc请求一个服务，用于连接到一个通过etcd注册的grpc服务，该函数会使用etcd作为服务发现机制，
@@ -16,6 +17,7 @@ import (
 func EtcdDial(c *clientv3.Client, service string) (*grpc.ClientConn, error) {
 	//c：一个创建好的etcd客户端，用于服务发现，service:需要连接的服务名称。返回一个gprc客户端连接和一个可能的错误
 	etcdResolver, err := resolver.NewBuilder(c)//使用传入的etcd客户端创建一个etcd解析器
+	log.Println("Trying to dial etcd with service name:", service)
 	if err != nil {
 		return nil, err
 	}

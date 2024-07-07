@@ -154,9 +154,8 @@ func (s *server) SetPeers(peersAddr ...string) {
 		}
 		//对于每一个有效的节点地址，创建并注册新的客户端实例
 		service := fmt.Sprintf("gocache/%s", peerAddr)
-		s.clients[peerAddr] = NewClient(service) 
-		stopCh := make(chan error, 1)
-		go registry.Register(service,peerAddr,stopCh)
+		s.clients[peerAddr] = NewClient(service)   // peerAddr -> gocache/peerAddr
+		//registry.Register(service,peerAddr,make(chan error, 1))
 	}
 }
 
@@ -166,15 +165,15 @@ func (s *server) Pick(key string) (Fetcher, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	peerAddr := s.consHash.GetPeer(key)
+	peerAddr := s.consHash.GetPeer(key)  //节点地址
 	// Pick itself
 	if peerAddr == s.addr {
 		log.Printf("ooh! pick myself, I am %s\n", s.addr)
 		return nil, false
 	}
 	log.Printf("[cache %s] pick remote peer: %s\n", s.addr, peerAddr)
-	// return s.clients[peerAddr], true
-	
+	return s.clients[peerAddr], true
+
 }
 
 // Stop 停止server运行 如果server没有运行 这将是一个no-op
