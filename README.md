@@ -9,7 +9,7 @@ The [**gRPC**](https://github.com/grpc/grpc-go) implementation of [**groupcache*
 
 - 改进LRU cache，使其具备TTL的能力，以及改进锁的粒度，提高并发度。
 
-- 将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru(lru-k)、hashlfu(lfu-k)）
+- 将单独 lru 算法实现改成多种算法可选（lru、lfu、arc、hashlru、hashlfu）
 
 - 根据需要的不同缓存淘汰算法,使用对应的调用方式(尚未实现)
 
