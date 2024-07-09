@@ -22,14 +22,16 @@ import (
 
 // server 模块为gocache之间提供通信能力
 // 这样部署在其他机器上的cache可以通过访问server获取缓存
-//  至于找哪台主机 那是一致性哈希的工作了
+//
+//	至于找哪台主机 那是一致性哈希的工作了
+//
 // 服务器的默认地址
 const (
 	defaultAddr     = "127.0.0.1:6324"
 	defaultReplicas = 50
 )
 
-//配置了 etcd 客户端的默认设置，包括 etcd 服务的端点地址和拨号超时时间。这是用于服务发现和注册的配置，确保服务器可以与 etcd 集群正确通信。
+// 配置了 etcd 客户端的默认设置，包括 etcd 服务的端点地址和拨号超时时间。这是用于服务发现和注册的配置，确保服务器可以与 etcd 集群正确通信。
 var (
 	defaultEtcdConfig = clientv3.Config{
 		Endpoints:   []string{"localhost:2379"},
@@ -39,14 +41,14 @@ var (
 
 // server 和 Group 是解耦合的 所以server要自己实现并发控制
 type server struct {
-	pb.UnimplementedGroupCacheServer   //protobuf生成的接口，确保server结构体实现了必须的grpc方法
+	pb.UnimplementedGroupCacheServer //protobuf生成的接口，确保server结构体实现了必须的grpc方法
 
 	addr       string     // format: ip:port
 	status     bool       // true: running false: stop
 	stopSignal chan error // 通知registry revoke服务
 	mu         sync.Mutex
-	consHash    *consistenthash.Consistency 
-	clients    map[string]*client   //每个客户端地址对应一个客户端实例
+	consHash   *consistenthash.Consistency
+	clients    map[string]*client //每个客户端地址对应一个客户端实例
 }
 
 // NewServer 创建cache的svr 若addr为空 则使用defaultAddr
@@ -60,23 +62,35 @@ func NewServer(addr string) (*server, error) {
 	return &server{addr: addr}, nil
 }
 
-// Get 实现GoCache service的Get接口
-func (s *server) Get(ctx context.Context, in *pb.Request) (*pb.Response, error) {
-	group, key := in.GetGroup(), in.GetKey()
+// Get 实现 GoCache service 的 Get 接口
+func (s *server) Get(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	group, key := req.GetGroup(), req.GetKey()
 	resp := &pb.Response{}
 
-	log.Printf("[gocache_svr %s] Recv RPC Request - (%s)/(%s)", s.addr, group, key)
+	log.Printf("[gocache_svr %s] Received RPC Request - Group: %s, Key: %s", s.addr, group, key)
 	if key == "" {
-		return resp, fmt.Errorf("key required")
+		return resp, fmt.Errorf("key is required")
 	}
+
+	// 获取缓存组
 	g := GetGroup(group)
 	if g == nil {
-		return resp, fmt.Errorf("group not found")
+		return resp, fmt.Errorf("group %s not found", group)
 	}
-	view, err := g.Get(key)
+
+	// 尝试从缓存获取数据
+	value, err := g.Get(key)
+	if err == nil {
+		resp.Value = value.ByteSlice()
+		return resp, nil
+	}
+
+	// 数据不在缓存中，从数据库加载
+	view, err := g.getLocally(key)
 	if err != nil {
-		return resp, err
+		return nil, fmt.Errorf("failed to load data for key %s: %v", key, err)
 	}
+
 	resp.Value = view.ByteSlice()
 	return resp, nil
 }
@@ -105,11 +119,11 @@ func (s *server) Start() error {
 	if err != nil {
 		return fmt.Errorf("failed to listen: %v", err)
 	}
-	grpcServer := grpc.NewServer() // 创建新的服务器实例
-	pb.RegisterGroupCacheServer(grpcServer, s)  // 这个服务器实例与 gRPC 服务相关联，允许 gRPC 处理到来的请求。
+	grpcServer := grpc.NewServer()             // 创建新的服务器实例
+	pb.RegisterGroupCacheServer(grpcServer, s) // 这个服务器实例与 gRPC 服务相关联，允许 gRPC 处理到来的请求。
 
 	// 注册服务至etcd，异步运行服务注册逻辑，避免阻塞主线程
-	go func() { 
+	go func() {
 		// Register never return unless stop singnal received
 		err := registry.Register("gocache", s.addr, s.stopSignal) //注册服务器的地址到etcd，这样客户端可以通过 etcd 发现并连接到这个服务器。
 		if err != nil {
@@ -127,7 +141,7 @@ func (s *server) Start() error {
 
 	//log.Printf("[%s] register service ok\n", s.addr)
 	s.mu.Unlock()
-	
+
 	// 在之前创建的监听器上服务gRPC请求，这是一个阻塞调用，会持续监听直到服务器关闭
 	if err := grpcServer.Serve(lis); s.status && err != nil {
 		return fmt.Errorf("failed to serve: %v", err)
@@ -146,7 +160,7 @@ func (s *server) SetPeers(peersAddr ...string) {
 	//初始化一个一致性哈希环
 	s.consHash = consistenthash.New(defaultReplicas, nil)
 	//供的远程节点地址注册到一致性哈希环中
-	s.consHash.Register(peersAddr...) 
+	s.consHash.Register(peersAddr...)
 	s.clients = make(map[string]*client)
 	for _, peerAddr := range peersAddr {
 		if !validPeerAddr(peerAddr) {
@@ -154,7 +168,7 @@ func (s *server) SetPeers(peersAddr ...string) {
 		}
 		//对于每一个有效的节点地址，创建并注册新的客户端实例
 		service := fmt.Sprintf("gocache/%s", peerAddr)
-		s.clients[peerAddr] = NewClient(service)   // peerAddr -> gocache/peerAddr
+		s.clients[peerAddr] = NewClient(service) // peerAddr -> gocache/peerAddr
 		//registry.Register(service,peerAddr,make(chan error, 1))
 	}
 }
@@ -165,7 +179,7 @@ func (s *server) Pick(key string) (Fetcher, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	peerAddr := s.consHash.GetPeer(key)  //节点地址
+	peerAddr := s.consHash.GetPeer(key) //节点地址
 	// Pick itself
 	if peerAddr == s.addr {
 		log.Printf("ooh! pick myself, I am %s\n", s.addr)
@@ -184,8 +198,8 @@ func (s *server) Stop() {
 		return
 	}
 	s.stopSignal <- nil // 发送停止keepalive信号
-	s.status = false // 设置server运行状态为stop
-	s.clients = nil // 清空一致性哈希信息 有助于垃圾回收
+	s.status = false    // 设置server运行状态为stop
+	s.clients = nil     // 清空一致性哈希信息 有助于垃圾回收
 	s.consHash = nil
 	s.mu.Unlock()
 }
