@@ -1,5 +1,4 @@
 # GoCache
-![](https://img.shields.io/badge/license-MIT-blue)![](https://img.shields.io/github/stars/peanutzhen/peanutcache?style=plastic)
 
 The [**gRPC**](https://github.com/grpc/grpc-go) implementation of [**groupcache**](https://github.com/golang/groupcache): A high performance, open source, using RPC framework that  communicated with each cache node. Cache service can register to [**etcd**](https://github.com/etcd-io/etcd), and each cache client can dicovery the service list by etcd.For more information see the [groupcache](https://github.com/golang/groupcache), or [**geecache**](https://geektutu.com/post/geecache.html).
 ## Introduce
